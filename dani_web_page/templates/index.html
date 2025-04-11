@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Economic Indicators Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2F3C7E;
+            --secondary-color: #FBEAEB;
+            --primary-bg: var(--secondary-color);
+            --sidebar-bg: #ffffff;
+            --text-primary: #2F3C7E;
+            --text-secondary: #505F9E;
+            --border-color: rgba(47, 60, 126, 0.1);
+            --hover-color: rgba(47, 60, 126, 0.05);
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .dashboard-header {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--primary-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(47, 60, 126, 0.1);
+        }
+
+        .dashboard-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--secondary-color);
+            margin: 0;
+        }
+
+        .control-panel {
+            background-color: var(--sidebar-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(47, 60, 126, 0.1);
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .control-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-section h5 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        .control-section h5 i {
+            color: var(--primary-color);
+        }
+
+        .country-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .form-check {
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .form-check:hover {
+            background-color: var(--hover-color);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .form-select {
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(47, 60, 126, 0.25);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: #3d4d99;
+            transform: translateY(-1px);
+        }
+
+        .chart-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(47, 60, 126, 0.1);
+            position: relative;
+            height: 65vh;
+            border: 1px solid var(--border-color);
+        }
+
+        .frequency-info {
+            background-color: white;
+            padding: 1.25rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(47, 60, 126, 0.1);
+            margin-top: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .frequency-badge {
+            display: inline-block;
+            padding: 0.35em 0.65em;
+            font-size: 0.85em;
+            font-weight: 500;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 6px;
+            background-color: var(--secondary-color);
+            color: var(--text-primary);
+            margin-left: 0.5rem;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            z-index: 1000;
+        }
+
+        .loading .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: var(--primary-color);
+        }
+
+        .data-note {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                margin: 1rem auto;
+            }
+            
+            .country-checkboxes {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">
+                <i class="bi bi-graph-up"></i>
+                Economic Indicators Dashboard
+            </h1>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 col-lg-3">
+                <div class="control-panel">
+                    <div class="control-section">
+                        <h5><i class="bi bi-globe"></i> Countries</h5>
+                        <div class="country-checkboxes">
+                            {% for country in countries %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="{{ country }}" id="country-{{ country }}">
+                                <label class="form-check-label" for="country-{{ country }}">
+                                    {{ country.title() }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <h5><i class="bi bi-bar-chart"></i> Indicator</h5>
+                        <select class="form-select" id="indicator-select">
+                            {% for key, value in indicators.items() %}
+                            <option value="{{ key }}">{{ value }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="control-section">
+                        <h5><i class="bi bi-clock"></i> Display Frequency</h5>
+                        <select class="form-select" id="frequency-select">
+                            <option value="auto">Auto (Most Common)</option>
+                            <option value="Monthly">Monthly</option>
+                            <option value="Quarterly">Quarterly</option>
+                            <option value="Yearly">Yearly</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary w-100" id="refresh-btn">
+                        <i class="bi bi-arrow-repeat"></i> Update Chart
+                    </button>
+                </div>
+
+                <div id="frequency-info" class="frequency-info" style="display: none;">
+                    <h5 class="mb-3"><i class="bi bi-info-circle"></i> Data Frequency</h5>
+                    <div id="frequency-details"></div>
+                    <div class="data-note">
+                        <i class="bi bi-lightbulb"></i>
+                        Values are converted to match the selected frequency. Original values are shown in tooltips.
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8 col-lg-9">
+                <div class="chart-container">
+                    <div class="loading" id="loading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <canvas id="comparison-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+        const colors = [
+            '#2F3C7E', // Primary Blue
+            '#FF6B6B', // Coral
+            '#4CAF50', // Green
+            '#FFA726', // Orange
+            '#7E57C2', // Purple
+            '#26A69A', // Teal
+            '#EC407A', // Pink
+            '#5C6BC0', // Indigo
+            '#66BB6A', // Light Green
+            '#FF7043'  // Deep Orange
+        ];
+
+        // Add event listeners for automatic updates
+        document.addEventListener('DOMContentLoaded', function() {
+            // Listen for country checkbox changes
+            document.querySelectorAll('.form-check-input').forEach(checkbox => {
+                checkbox.addEventListener('change', updateChart);
+            });
+
+            // Listen for indicator select changes
+            document.getElementById('indicator-select').addEventListener('change', updateChart);
+
+            // Listen for frequency select changes
+            document.getElementById('frequency-select').addEventListener('change', updateChart);
+
+            // Initial chart update
+            updateChart();
+        });
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function updateFrequencyInfo(frequencies, targetFreq) {
+            const freqInfo = document.getElementById('frequency-info');
+            const freqDetails = document.getElementById('frequency-details');
+            freqDetails.innerHTML = '';
+            
+            Object.entries(frequencies).forEach(([country, freqs]) => {
+                const countryDiv = document.createElement('div');
+                const countryName = country.charAt(0).toUpperCase() + country.slice(1);
+                const frequency = Array.isArray(freqs) && freqs.length > 0 ? freqs[0] : 'Unknown';
+                
+                countryDiv.innerHTML = `${countryName} <span class="frequency-badge">${frequency}</span>`;
+                freqDetails.appendChild(countryDiv);
+            });
+            
+            freqInfo.style.display = 'block';
+        }
+
+        function updateChart() {
+            const selectedCountries = Array.from(document.querySelectorAll('.form-check-input:checked'))
+                .map(cb => cb.value);
+            const indicator = document.getElementById('indicator-select').value;
+            const targetFrequency = document.getElementById('frequency-select').value;
+
+            if (selectedCountries.length === 0) {
+                alert('Please select at least one country');
+                return;
+            }
+
+            showLoading();
+            const queryParams = new URLSearchParams();
+            selectedCountries.forEach(country => queryParams.append('countries[]', country));
+            queryParams.append('indicator', indicator);
+            queryParams.append('frequency', targetFrequency);
+
+            fetch(`/api/data?${queryParams.toString()}`)
+                .then(response => response.json())
+                .then(response => {
+                    hideLoading();
+                    if (chart) {
+                        chart.destroy();
+                    }
+
+                    updateFrequencyInfo(response.metadata.frequencies, response.metadata.target_frequency);
+
+                    const datasets = Object.entries(response.data).map(([country, countryData], index) => ({
+                        label: country.charAt(0).toUpperCase() + country.slice(1),
+                        data: countryData.data.map(v => ({ 
+                            x: v.date, 
+                            y: v.value,
+                            originalValue: v.original_value,
+                            originalFreq: v.original_frequency,
+                            targetFreq: response.metadata.target_frequency
+                        })),
+                        borderColor: colors[index % colors.length],
+                        backgroundColor: colors[index % colors.length],
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }));
+
+                    chart = new Chart('comparison-chart', {
+                        type: 'line',
+                        data: {
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                intersect: false,
+                                mode: 'index'
+                            },
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: 'year',
+                                        displayFormats: {
+                                            year: 'YYYY'
+                                        }
+                                    },
+                                    grid: {
+                                        color: 'rgba(0,0,0,0.05)'
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Date',
+                                        font: {
+                                            size: 13,
+                                            weight: 500
+                                        }
+                                    }
+                                },
+                                y: {
+                                    grid: {
+                                        color: 'rgba(0,0,0,0.05)'
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: document.getElementById('indicator-select').selectedOptions[0].text,
+                                        font: {
+                                            size: 13,
+                                            weight: 500
+                                        }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: `${document.getElementById('indicator-select').selectedOptions[0].text} Comparison`,
+                                    font: {
+                                        size: 16,
+                                        weight: 600
+                                    },
+                                    padding: {
+                                        bottom: 20
+                                    }
+                                },
+                                legend: {
+                                    position: 'top',
+                                    labels: {
+                                        usePointStyle: true,
+                                        padding: 15,
+                                        font: {
+                                            size: 12
+                                        }
+                                    }
+                                },
+                                tooltip: {
+                                    enabled: true,
+                                    backgroundColor: 'rgba(255,255,255,0.95)',
+                                    titleColor: '#2c3e50',
+                                    bodyColor: '#2c3e50',
+                                    borderColor: '#e9ecef',
+                                    borderWidth: 1,
+                                    padding: 12,
+                                    cornerRadius: 8,
+                                    callbacks: {
+                                        label: function(context) {
+                                            const data = context.raw;
+                                            return [
+                                                `${context.dataset.label}:`,
+                                                `  Value (${data.targetFreq}): ${context.parsed.y.toLocaleString()}`,
+                                                `  Original (${data.originalFreq}): ${data.originalValue.toLocaleString()}`
+                                            ];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(error => {
+                    hideLoading();
+                    console.error('Error fetching data:', error);
+                    alert('Error fetching data. Please try again.');
+                });
+        }
+
+        // Pre-select Mexico and Sweden
+        document.getElementById('country-mexico').checked = true;
+        document.getElementById('country-sweden').checked = true;
+    </script>
+</body>
+</html> 
